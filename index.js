@@ -67,11 +67,11 @@ SOFTWARE.
 
                 const data = await response.text(); // text/plain response. Should be just "OK".
                 if (response.ok) {
-                    console.log("Account logged in successfully.");
+                    console.log("账户登录成功。");
                     this.sessionToken = data;
 
                 } else {
-                    console.warn("Account login failed:", data);
+                    console.warn("账户登录失败：", data);
                 }
                 this.loginSuccess = response.ok;
                 this.statusCodes.login = response.status;
@@ -82,7 +82,7 @@ SOFTWARE.
 
         async GuestLogin(username) {
             if (username == "") {
-                console.warn("Guest login failed: No username provided.");
+                console.warn("访客登录失败：未提供用户名。");
                 this.loginSuccess = false;
                 this.statusCodes.login = "400";
                 return;
@@ -101,11 +101,11 @@ SOFTWARE.
 
                 const data = await response.text(); // text/plain response. Should be just "OK".
                 if (response.ok) {
-                    console.log("Account guest logged in successfully.");
+                    console.log("访客账户登录成功。");
                     this.sessionToken = data;
 
                 } else {
-                    console.warn("Account guest login failed:", data);
+                    console.warn("访客登录失败：", data);
                 }
                 this.loginSuccess = response.ok;
                 this.statusCodes.login = response.status;
@@ -131,9 +131,9 @@ SOFTWARE.
 
                 const data = await response.text(); // text/plain response. Should be just "OK".
                 if (response.ok) {
-                    console.log("Saved data successfully.");
+                    console.log("数据保存成功。");
                 } else {
-                    console.warn("Save failed:", data);
+                    console.warn("保存失败：", data);
                 }
                 this.saveSuccess = response.ok;
                 this.statusCodes.save = response.status;
@@ -158,10 +158,10 @@ SOFTWARE.
 
                 const data = await response.text(); // text/plain response. Should be just "OK".
                 if (response.ok) {
-                    console.log("Loaded data successfully.");
+                    console.log("数据加载成功。");
                     this.loadedData = data;
                 } else {
-                    console.warn("Load failed:", data);
+                    console.warn("加载失败：", data);
                 }
                 this.loadSuccess = response.ok;
                 this.statusCodes.load = response.status;
@@ -186,10 +186,10 @@ SOFTWARE.
 
                 const data = await response.text(); // text/plain response. Should be just "OK".
                 if (data == 'OK' || data == "OK; Email verification disabled") {
-                    console.log("Account registered successfully.");
+                    console.log("账户注册成功。");
                     this.registerSuccess = true;
                 } else {
-                    console.warn("Account registration failed:", data);
+                    console.warn("账户注册失败：", data);
                     this.registerSuccess = false;
                 }
                 this.statusCodes.register = response.status;
@@ -214,10 +214,10 @@ SOFTWARE.
 
                 const data = await response.text(); // text/plain response. Should be just "OK".
                 if (data == 'OK') {
-                    console.log("Email verified successfully.");
+                    console.log("邮箱验证成功。");
                     
                 } else {
-                    console.warn("Email verification failed:", data);
+                    console.warn("邮箱验证失败：", data);
                 }
                 this.verifySuccess = (data == 'OK');
                 this.statusCodes.verify = response.status;
@@ -240,10 +240,10 @@ SOFTWARE.
                 });
                 const data = await response.text(); // text/plain response. Should be just "OK".
                 if (data == 'OK') {
-                    console.log("Resent email verification successfully.");
+                    console.log("已成功重新发送邮箱验证。");
                     
                 } else {
-                    console.warn("Resend email verification failed:", data);
+                    console.warn("重新发送邮箱验证失败：", data);
                 }
                 this.resendSuccess = (data == 'OK');
                 this.statusCodes.resend = response.status;
@@ -285,7 +285,7 @@ SOFTWARE.
                     {
                         opcode: 'set_ugi',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('set [UGI] as unique game id (ugi)'),
+                        text: Scratch.translate('将 [UGI] 设置为唯一游戏 ID (ugi)'),
                         arguments: {
                             UGI: {
                                 type: Scratch.ArgumentType.STRING,
@@ -296,7 +296,7 @@ SOFTWARE.
                     {
                         opcode: 'change_api_url',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('use [URL] for api calls'),
+                        text: Scratch.translate('对 API 调用使用 [URL]'),
                         arguments: {
                             URL: {
                                 type: Scratch.ArgumentType.STRING,
@@ -307,7 +307,7 @@ SOFTWARE.
                     {
                         opcode: 'change_wss_url',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('use [URL] for game server'),
+                        text: Scratch.translate('对游戏服务器使用 [URL]'),
                         arguments: {
                             URL: {
                                 type: Scratch.ArgumentType.STRING,
@@ -318,7 +318,7 @@ SOFTWARE.
                     {
                         opcode: 'change_auth_url',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('use [URL] for authentication'),
+                        text: Scratch.translate('对身份验证使用 [URL]'),
                         arguments: {
                             URL: {
                                 type: Scratch.ArgumentType.STRING,
@@ -329,28 +329,28 @@ SOFTWARE.
                     {
                         opcode: 'build_server_url',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('connection string'),
+                        text: Scratch.translate('连接字符串'),
                     },
                     "---",
                     {
                         opcode: 'get_token',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('session token'),
+                        text: Scratch.translate('会话令牌'),
                     },
                     {
                         opcode: 'login_status_code',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('login status code'),
+                        text: Scratch.translate('登录状态码'),
                     },
                     {
                         opcode: 'was_login_successful',
                         blockType: Scratch.BlockType.BOOLEAN,
-                        text: Scratch.translate('was login successful?'),
+                        text: Scratch.translate('登录是否成功？'),
                     },
                     {
                         opcode: 'guest_login',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('login as guest with username: [USERNAME]'),
+                        text: Scratch.translate('以访客身份登录，用户名： [USERNAME]'),
                         arguments: {
                             USERNAME: {
                                 type: Scratch.ArgumentType.STRING,
@@ -361,7 +361,7 @@ SOFTWARE.
                     {
                         opcode: 'login_account',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('login with email: [EMAIL] password: [PASSWORD] totp: [TOTP]'),
+                        text: Scratch.translate('使用邮箱登录： [EMAIL] 密码： [PASSWORD] TOTP： [TOTP]'),
                         arguments: {
                             EMAIL: {
                                 type: Scratch.ArgumentType.STRING,
@@ -381,17 +381,17 @@ SOFTWARE.
                     {
                         opcode: 'register_status_code',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('registration status code'),
+                        text: Scratch.translate('注册状态码'),
                     },
                     {
                         opcode: 'was_register_successful',
                         blockType: Scratch.BlockType.BOOLEAN,
-                        text: Scratch.translate('was registration successful?'),
+                        text: Scratch.translate('注册是否成功？'),
                     },
                     {
                         opcode: 'register_account',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('register with email: [EMAIL] username: [USERNAME] password: [PASSWORD]'),
+                        text: Scratch.translate('使用邮箱注册： [EMAIL] 用户名： [USERNAME] 密码： [PASSWORD]'),
                         arguments: {
                             EMAIL: {
                                 type: Scratch.ArgumentType.STRING,
@@ -410,22 +410,22 @@ SOFTWARE.
                     "---",
                     {
                         blockType: Scratch.BlockType.LABEL,
-                        text: Scratch.translate(`Login first before verifying your email.`),
+                        text: Scratch.translate(`请先登录，然后再验证您的邮箱。`),
                     },
                     {
                         opcode: 'verify_status_code',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('email verify status code'),
+                        text: Scratch.translate('邮箱验证状态码'),
                     },
                     {
                         opcode: 'was_verify_successful',
                         blockType: Scratch.BlockType.BOOLEAN,
-                        text: Scratch.translate('was email verification successful?'),
+                        text: Scratch.translate('邮箱验证是否成功？'),
                     },
                     {
                         opcode: 'verify_account',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('verify email with code: [CODE]'),
+                        text: Scratch.translate('使用验证码验证邮箱： [CODE]'),
                         arguments: {
                             CODE: {
                                 type: Scratch.ArgumentType.STRING,
@@ -437,33 +437,33 @@ SOFTWARE.
                     {
                         opcode: 'resend_status_code',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('resend email verify status code'),
+                        text: Scratch.translate('重新发送邮箱验证状态码'),
                     },
                     {
                         opcode: 'was_resend_successful',
                         blockType: Scratch.BlockType.BOOLEAN,
-                        text: Scratch.translate('was resending email verification successful?'),
+                        text: Scratch.translate('重新发送邮箱验证码是否成功？'),
                     },
                     {
                         opcode: 'resend_verify',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('resend email verify code'),
+                        text: Scratch.translate('重新发送邮箱验证码'),
                     },
                     "---",
                     {
                         opcode: 'save_status_code',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('save status code'),
+                        text: Scratch.translate('保存状态码'),
                     },
                     {
                         opcode: 'was_save_successful',
                         blockType: Scratch.BlockType.BOOLEAN,
-                        text: Scratch.translate('was save successful?'),
+                        text: Scratch.translate('保存是否成功？'),
                     },
                     {
                         opcode: 'save_slot',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('write to save slot [SLOT] with [DATA]'),
+                        text: Scratch.translate('写入保存槽 [SLOT]： [DATA]'),
                         arguments: {
                             SLOT: {
                                 type: Scratch.ArgumentType.NUMBER,
@@ -472,7 +472,7 @@ SOFTWARE.
                             },
                             DATA: {
                                 type: Scratch.ArgumentType.STRING,
-                                defaultValue: 'something to save',
+                                defaultValue: '要保存的内容',
                             },
                         }
                     },
@@ -480,22 +480,22 @@ SOFTWARE.
                     {
                         opcode: 'load_status_code',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('load status code'),
+                        text: Scratch.translate('加载状态码'),
                     },
                     {
                         opcode: 'was_load_successful',
                         blockType: Scratch.BlockType.BOOLEAN,
-                        text: Scratch.translate('was load successful?'),
+                        text: Scratch.translate('加载是否成功？'),
                     },
                     {
                         opcode: 'loaded_slot_data',
                         blockType: Scratch.BlockType.REPORTER,
-                        text: Scratch.translate('loaded save data'),
+                        text: Scratch.translate('已加载的保存数据'),
                     },
                     {
                         opcode: 'load_slot',
                         blockType: Scratch.BlockType.COMMAND,
-                        text: Scratch.translate('read from save slot [SLOT]'),
+                        text: Scratch.translate('从保存槽读取 [SLOT]'),
                         arguments: {
                             SLOT: {
                                 type: Scratch.ArgumentType.NUMBER,
