@@ -200,7 +200,12 @@ SOFTWARE.
 
         async Save(save_slot, save_data) {
             try {
-                const response = await fetch(`${this.rootApiV1URL}/save`, {
+                const url = `${this.rootApiV1URL}/save`;
+                if (!this.rootApiV1URL || this.rootApiV1URL.startsWith('/')) {
+                    console.warn("[CloudLinkOmega] API URL looks relative or empty; in TurboWarp Desktop this will fail. Use the '对 API 调用使用 [URL]' block to set the full server URL first.");
+                }
+                console.log("[CloudLinkOmega] Save request URL:", url);
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -214,6 +219,7 @@ SOFTWARE.
                 });
 
                 const data = await response.text(); // text/plain response. Should be just "OK".
+                console.log("[CloudLinkOmega] Save response status:", response.status, "body:", data);
                 if (response.ok) {
                     console.log("数据保存成功。");
                 } else {
@@ -223,6 +229,8 @@ SOFTWARE.
                 this.statusCodes.save = response.status;
             } catch (error) {
                 console.error('Error saving data:', error);
+                this.saveSuccess = false;
+                this.statusCodes.save = 'network_error';
             }
         }
 
@@ -1315,8 +1323,14 @@ SOFTWARE.
     // Initialize class for the extension
     const OmegaAuthInstance = new OmegaAuth();
 
+    // STUN/TURN Server Configuration
+    const DEFAULT_STUN_SERVERS = ["stun:vpn.cloudlink-omega-next:3478", "stun:vpn.cloudlink-omega-next:5349"];
+    const DEFAULT_TURN_SERVER = "turn:vpn.cloudlink-omega-next:5349";
+    const DEFAULT_TURN_USERNAME = "free";
+    const DEFAULT_TURN_PASSWORD = "free";
+
     // Define the extension for the CLΩ service
-    class CloudlinkOmegaNext {
+    class CloudLinkOmega {
         constructor(Scratch) {
             this.vm = Scratch.vm; // VM
             this.runtime = Scratch.vm.runtime; // Runtime
@@ -2327,15 +2341,20 @@ SOFTWARE.
         }
 
         change_api_url({ URL }) {
-            OmegaAuthInstance.rootApiURL = Scratch.Cast.toString(URL);
+            const value = Scratch.Cast.toString(URL);
+            OmegaAuthInstance.rootApiURL = value;
+            OmegaAuthInstance.rootApiV1URL = value;
         }
 
         change_wss_url({ URL }) {
-            OmegaAuthInstance.rootWsURL = Scratch.Cast.toString(URL);
+            const value = Scratch.Cast.toString(URL);
+            OmegaAuthInstance.rootWsURL = value;
         }
 
         change_auth_url({ URL }) {
-            OmegaAuthInstance.rootAuthURL = Scratch.Cast.toString(URL);
+            const value = Scratch.Cast.toString(URL);
+            OmegaAuthInstance.rootAuthURL = value;
+            OmegaAuthInstance.rootAuthV1URL = value.replace(/\/api\/v0$/, "/api/v1");
         }
 
         async login_account({ EMAIL, PASSWORD, TOTP }) {
