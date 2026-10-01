@@ -10,11 +10,23 @@
     - achievements
     - developer & game registration
 
+    Authentication model (matches the Omega backend):
+    - The backend authenticates via the "clomega-authorization" session cookie
+      (a JWT set by login / guest-login). Every request therefore sends
+      credentials: 'include' so the cookie travels with the request.
+    - When a session token is held, it is also sent as an
+      "Authorization: Bearer <token>" header and as a "token" body field
+      for endpoints that accept it (/save, /load and friends/messages style
+      endpoints), which allows non-cookie clients to authenticate as well.
+    - Cross-origin usage requires the accounts/API server to send
+      Access-Control-Allow-Credentials and an explicit origin.
+
     Usage:
       <script src="omega-browser.js"></script>
       <script>
         const omega = new OmegaBrowser({ apiUrl, authUrl });
-        await omega.connect();
+        await omega.login('mail@example.com', 'password');
+        await omega.getProfile();
       </script>
 */
 
@@ -90,11 +102,20 @@
         }
 
         async _request(url, options) {
-            const response = await fetch(url, options);
+            const opts = Object.assign({}, options);
+            if (!opts.credentials) opts.credentials = 'include';
+            const headers = Object.assign({}, opts.headers);
+            if (this.sessionToken && !headers['Authorization']) {
+                headers['Authorization'] = 'Bearer ' + this.sessionToken;
+            }
+            opts.headers = headers;
+            const response = await fetch(url, opts);
             const text = await response.text();
             let data;
             if (text) {
                 try { data = JSON.parse(text); } catch (e) { data = text; }
+            } else if (response.ok) {
+                data = {};
             }
             return { response, data, text };
         }
@@ -107,6 +128,29 @@
             return this.sessionToken;
         }
 
+        _extractToken(rawText) {
+            const token = String(rawText == null ? '' : rawText).trim();
+            if (!token) return '';
+            if (/[<>\s]/.test(token) || token.length > 4096) return '';
+            return token;
+        }
+
+        _toStringArray(value) {
+            if (Array.isArray(value)) return value.map(v => String(v));
+            if (value == null || value === '') return [];
+            if (typeof value === 'string') {
+                const trimmed = value.trim();
+                if (!trimmed) return [];
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    return Array.isArray(parsed) ? parsed.map(v => String(v)) : [String(parsed)];
+                } catch (e) {
+                    return [trimmed];
+                }
+            }
+            return [String(value)];
+        }
+
         async guestLogin(username) {
             const payload = { username: String(username) };
             const result = await this._request(this._authUrl('/guest-login'), {
@@ -115,7 +159,11 @@
                 body: JSON.stringify(payload)
             });
             if (result.response.ok) {
-                this.sessionToken = result.text;
+                this.sessionToken = this._extractToken(result.text);
+                if (!this.sessionToken) {
+                    this.emit('loginError', { status: result.response.status, data: 'Malformed session token in response.' });
+                    return false;
+                }
                 this.emit('login', { status: result.response.status });
                 return true;
             }
@@ -131,7 +179,11 @@
                 body: JSON.stringify(payload)
             });
             if (result.response.ok) {
-                this.sessionToken = result.text;
+                this.sessionToken = this._extractToken(result.text);
+                if (!this.sessionToken) {
+                    this.emit('loginError', { status: result.response.status, data: 'Malformed session token in response.' });
+                    return false;
+                }
                 this.emit('login', { status: result.response.status });
                 return true;
             }
@@ -146,7 +198,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && (result.text === 'OK' || result.text === 'OK; Email verification disabled');
+            const ok = result.response.ok;
             if (ok) {
                 this.emit('register', { status: result.response.status });
             } else {
@@ -160,7 +212,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('validate', { ok, status: result.response.status, data: result.data });
             return ok;
         }
@@ -170,7 +222,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('logout', { ok, status: result.response.status });
             if (ok) this.sessionToken = '';
             return ok;
@@ -184,7 +236,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('verify', { ok, status: result.response.status });
             return ok;
         }
@@ -196,7 +248,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token: this.sessionToken })
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('resendVerify', { ok, status: result.response.status });
             return ok;
         }
@@ -209,7 +261,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('resetPassword', { ok, status: result.response.status });
             return ok;
         }
@@ -221,8 +273,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'Username available.';
-            this.emit('checkUsername', { ok, status: result.response.status });
+            const ok = result.response.status === 200;
+            this.emit('checkUsername', { ok, status: result.response.status, data: result.data });
             return ok;
         }
 
@@ -232,7 +284,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('totpEnrollmentBegin', { ok, status: result.response.status, data: ok ? result.data.data : null });
             return ok ? result.data.data : null;
         }
@@ -243,7 +295,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('totpEnrollmentVerify', { ok, status: result.response.status, data: ok ? result.data.data : null });
             return ok ? result.data.data : null;
         }
@@ -255,7 +307,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('recoverySend', { ok, status: result.response.status });
             return ok;
         }
@@ -272,7 +324,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('recoveryConfirm', { ok, status: result.response.status });
             return ok;
         }
@@ -288,7 +340,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'Password changed successfully.';
+            const ok = result.response.ok;
             this.emit('changePassword', { ok, status: result.response.status });
             return ok;
         }
@@ -304,7 +356,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('changeEmail', { ok, status: result.response.status });
             return ok;
         }
@@ -314,7 +366,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('confirmEmailChange', { ok, status: result.response.status });
             return ok;
         }
@@ -327,7 +379,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'TOTP disabled successfully.';
+            const ok = result.response.ok;
             this.emit('disableTotp', { ok, status: result.response.status });
             return ok;
         }
@@ -339,9 +391,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
-            this.emit('recoveryCodesRegenerate', { ok, status: result.response.status, codes: ok ? result.data.data.recovery_codes : [] });
-            return ok ? (result.data.data && result.data.data.recovery_codes) : [];
+            const ok = result.response.ok;
+            const codes = ok && result.data.data && Array.isArray(result.data.data.recovery_codes) ? result.data.data.recovery_codes : [];
+            this.emit('recoveryCodesRegenerate', { ok, status: result.response.status, codes: codes });
+            return codes;
         }
 
         async save(saveSlot, saveData) {
@@ -377,7 +430,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('search', { ok, status: result.response.status, data: ok ? result.data.data : [] });
             return ok ? result.data.data : [];
         }
@@ -390,7 +443,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('friendRequest', { ok, status: result.response.status });
             return ok;
         }
@@ -402,7 +455,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('friendAccept', { ok, status: result.response.status });
             return ok;
         }
@@ -414,7 +467,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('friendReject', { ok, status: result.response.status });
             return ok;
         }
@@ -426,7 +479,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('friendCancel', { ok, status: result.response.status });
             return ok;
         }
@@ -437,7 +490,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('friends', { ok, status: result.response.status, data: ok ? result.data.data : [] });
             return ok ? result.data.data : [];
         }
@@ -449,7 +502,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('friendRemove', { ok, status: result.response.status });
             return ok;
         }
@@ -462,7 +515,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('messageSend', { ok, status: result.response.status });
             return ok;
         }
@@ -473,7 +526,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('messages', { ok, status: result.response.status, data: ok ? result.data.data : [] });
             return ok ? result.data.data : [];
         }
@@ -486,7 +539,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('block', { ok, status: result.response.status });
             return ok;
         }
@@ -499,7 +552,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('unblock', { ok, status: result.response.status });
             return ok;
         }
@@ -510,7 +563,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('blocklist', { ok, status: result.response.status, data: ok ? result.data.data : [] });
             return ok ? result.data.data : [];
         }
@@ -521,7 +574,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('notifications', { ok, status: result.response.status, data: ok ? result.data.data : [] });
             return ok ? result.data.data : [];
         }
@@ -533,7 +586,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('notificationRead', { ok, status: result.response.status });
             return ok;
         }
@@ -544,7 +597,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('unreadNotificationCount', { ok, status: result.response.status, data: ok ? result.data.data : null });
             return ok ? result.data.data : null;
         }
@@ -556,7 +609,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('notificationsAllRead', { ok, status: result.response.status });
             return ok;
         }
@@ -567,7 +620,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('friendRequests', { ok, status: result.response.status, data: ok ? result.data.data : [] });
             return ok ? result.data.data : [];
         }
@@ -578,7 +631,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('profile', { ok, status: result.response.status, data: ok ? result.data.data : null });
             return ok ? result.data.data : null;
         }
@@ -596,7 +649,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'Profile updated successfully.';
+            const ok = result.response.ok;
             this.emit('profileUpdate', { ok, status: result.response.status });
             return ok;
         }
@@ -610,7 +663,7 @@
                 method: 'POST',
                 body: formData
             });
-            const ok = result.response.ok && result.data && result.data.result === 'Avatar uploaded successfully.';
+            const ok = result.response.ok;
             this.emit('avatarUpload', { ok, status: result.response.status, data: ok ? result.data.data : null });
             return ok ? result.data.data : null;
         }
@@ -629,7 +682,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('achievementTrigger', { ok, status: result.response.status, data: ok ? result.data.data : null });
             return ok ? result.data.data : null;
         }
@@ -641,7 +694,7 @@
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('achievements', { ok, status: result.response.status, data: ok ? result.data.data : [] });
             return ok ? result.data.data : [];
         }
@@ -652,14 +705,14 @@
                 token: this.sessionToken,
                 name: String(name),
                 description: String(description),
-                members: JSON.parse(String(members || '[]'))
+                members: this._toStringArray(members)
             };
             const result = await this._request(this._url('/developer/register'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('developerRegister', { ok, status: result.response.status, data: ok ? result.data.data : null });
             return ok ? result.data.data : null;
         }
@@ -671,14 +724,14 @@
                 developerid: String(developerId),
                 name: String(name),
                 description: String(description),
-                features: JSON.parse(String(features || '[]'))
+                features: this._toStringArray(features)
             };
             const result = await this._request(this._url('/developer/newgame'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const ok = result.response.ok && result.data && result.data.result === 'OK';
+            const ok = result.response.ok;
             this.emit('gameRegister', { ok, status: result.response.status, data: ok ? result.data.data : null });
             return ok ? result.data.data : null;
         }

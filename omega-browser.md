@@ -51,6 +51,14 @@ omega.setUgi('...');
 omega.getSessionToken();
 ```
 
+> **Auth model**
+>
+> - The Omega backend authenticates with a **cookie session** (`clomega-authorization`), set by the backend on `guestLogin` / `login` / `register`.
+> - Every SDK request uses `credentials: 'include'`, so same-origin deployments send the cookie automatically.
+> - The plain-text token returned by the login endpoints is extracted (trimmed + validated) into `sessionToken`; subsequent requests also send an `Authorization: Bearer <sessionToken>` header, and endpoints such as `/save` `/load` include the `token` body field as the backend expects.
+> - For cross-origin deployments the backend must allow credentials (`Access-Control-Allow-Origin` cannot be `*`).
+> - Expired sessions surface as non-2xx responses / thrown errors; listen to the matching `xxxError` events or catch exceptions.
+
 ## Account security
 
 ```js
@@ -114,8 +122,8 @@ await omega.uploadAvatar(fileInput.files[0]);
 ```js
 await omega.triggerAchievement(gameId, 'desc', 10, 'iconId');
 await omega.getAchievements(gameId);
-await omega.registerDeveloper('name', 'desc', '[]');
-await omega.registerGame(devId, 'name', 'desc', '[]');
+await omega.registerDeveloper('name', 'desc', ['userId1', 'userId2']);
+await omega.registerGame(devId, 'name', 'desc', ['feature1', 'feature2']);
 ```
 
 ## Events

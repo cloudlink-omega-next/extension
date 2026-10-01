@@ -146,8 +146,8 @@ export class OmegaBrowser extends EventTarget {
 
   triggerAchievement(gameId: string, description: string, points: number, iconId: string): Promise<unknown | null>;
   getAchievements(gameId?: string): Promise<OmegaAchievement[]>;
-  registerDeveloper(name: string, description: string, members?: string): Promise<unknown | null>;
-  registerGame(developerId: string, name: string, description: string, features?: string): Promise<unknown | null>;
+  registerDeveloper(name: string, description: string, members?: string[] | string): Promise<unknown | null>;
+  registerGame(developerId: string, name: string, description: string, features?: string[] | unknown[] | string): Promise<unknown | null>;
 
   on<K extends keyof OmegaEventMap>(event: K, listener: (payload: OmegaEventMap[K]) => void): this;
   off<K extends keyof OmegaEventMap>(event: K, listener: (payload: OmegaEventMap[K]) => void): this;

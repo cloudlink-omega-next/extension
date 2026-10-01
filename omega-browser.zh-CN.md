@@ -159,6 +159,14 @@ const token = omega.getSessionToken();
 omega.setUgi('新UGI');
 ```
 
+> **认证模型说明**
+>
+> - Omega 后端以 **Cookie 会话**（`clomega-authorization`）作为主认证方式，`guestLogin` / `login` / `register` 成功后由后端 `Set-Cookie` 写入。
+> - SDK 所有请求都带 `credentials: 'include'`，同源部署时浏览器会自动带上该 Cookie，无需手动处理。
+> - 登录接口返回的纯文本令牌会被 SDK 提取（自动 `trim` 并做格式校验）存为 `sessionToken`，后续请求会同时附带 `Authorization: Bearer <sessionToken>` 头；`/save`、`/load` 等接口还会按后端约定在 body 里带 `token` 字段。
+> - 跨域部署时，后端必须放行 `Access-Control-Allow-Credentials`，且前端 `apiUrl` 需与后端保持一致（`Access-Control-Allow-Origin` 不能为 `*`）。
+> - 如果令牌已失效（例如后端会话过期），需要登录的接口会以非 2xx 状态结束并抛出错误，可监听对应的 `xxxError` 事件或捕获异常。
+
 ### 4.2 账户安全
 
 ```ts
@@ -244,8 +252,8 @@ const triggerOk = await omega.triggerAchievement('游戏ID', '描述', 10, '图�
 const achievements = await omega.getAchievements('游戏ID');
 
 // 开发者 / 游戏
-const devOk = await omega.registerDeveloper('名称', '描述', '[]');
-const gameOk = await omega.registerGame('开发者ID', '游戏名称', '描述', '[]');
+const devOk = await omega.registerDeveloper('名称', '描述', ['用户ID1', '用户ID2']);
+const gameOk = await omega.registerGame('开发者ID', '游戏名称', '描述', ['特性1', '特性2']);
 ```
 
 ---
@@ -416,7 +424,7 @@ interface OmegaGame {
 ## 8. 注意事项
 
 - 所有需要登录的接口，如果未登录会直接抛出 `Not logged in`。
-- `members` 和 `features` 参数接受 JSON 字符串，例如 `'[]'`。
+- `registerDeveloper` / `registerGame` 的 `members` / `features` 参数接受数组（如 `['id1', 'id2']`），也兼容传 JSON 字符串（如 `'["id1"]'`）。
 - `uploadAvatar` 需要传入 `File` 对象，例如 `<input type="file">` 的 `files[0]`。
 - 建议配合 HTTPS 使用，避免部分浏览器对 WebRTC / 麦克风 / 摄像头有额外限制。
 
